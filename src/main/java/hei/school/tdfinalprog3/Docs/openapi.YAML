@@ -1,0 +1,232 @@
+openapi: 3.0.3
+info:
+  title: Federation Agricultural Management API
+  version: 1.0.0
+
+paths:
+
+  /collectivities:
+    post:
+      summary: Open a new agricultural collectivity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, city, specialty, members, authorization, annualContribution]
+              properties:
+                name: { type: string }
+                city: { type: string }
+                specialty: { type: string }
+                creationDate: { type: string, format: date }
+                members:
+                  type: array
+                  minItems: 10
+                  items:
+                    type: string
+                authorization: { type: boolean }
+                annualContribution:
+                  type: number
+                  description: Annual contribution required by this collectivity (Ar)
+      responses:
+        "201":
+          description: Collectivity created
+
+  /members:
+    post:
+      summary: Admit a new member into a collectivity (B-2 updated rules)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                [
+                  firstName, lastName, birthDate, gender,
+                  address, job, phone, email,
+                  collectivityId,
+                  sponsors,
+                  payment
+                ]
+              properties:
+                firstName: { type: string }
+                lastName: { type: string }
+                birthDate: { type: string, format: date }
+                gender: { type: string, enum: [F, M] }
+                address: { type: string }
+                job: { type: string }
+                phone: { type: string }
+                email: { type: string }
+
+                collectivityId:
+                  type: string
+                  description: Target collectivity
+
+                sponsors:
+                  type: array
+                  minItems: 2
+                  description: Must contain at least 2 confirmed members from federations
+                  items:
+                    type: object
+                    required: [memberId, relation, collectivityId]
+                    properties:
+                      memberId: { type: string }
+                      collectivityId: { type: string }
+                      relation:
+                        type: string
+                        enum: [family, friend, colleague, other]
+
+                payment:
+                  type: object
+                  required: [adhesionFee, annualContributionPaid, method]
+                  properties:
+                    adhesionFee:
+                      type: number
+                      example: 50000
+                      description: Fixed membership fee
+                    annualContributionPaid:
+                      type: number
+                      description: Must match collectivity annual contribution
+                    method:
+                      type: string
+                      enum: [mobile_money, bank_transfer]
+
+      responses:
+        "201":
+          description: Member admitted
+
+  /contributions:
+    post:
+      summary: Record a member contribution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [memberId, amount, date, type, paymentMode]
+              properties:
+                memberId: { type: string }
+                amount: { type: number }
+                date: { type: string, format: date }
+                type: { type: string, enum: [monthly, annual, special] }
+                paymentMode: { type: string, enum: [cash, bank, mobile_money] }
+      responses:
+        "201":
+          description: Contribution recorded
+
+  /accounts:
+    post:
+      summary: Create a financial account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, holderName, balance]
+              properties:
+                type: { type: string, enum: [bank, mobile_money, cash] }
+                holderName: { type: string }
+                balance: { type: number }
+                bankName: { type: string }
+                accountNumber: { type: string }
+                phoneNumber: { type: string }
+      responses:
+        "201":
+          description: Account created
+
+
+  /activities:
+    post:
+      summary: Create an activity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, type, date, mandatory]
+              properties:
+                name: { type: string }
+                type:
+                  type: string
+                  enum: [general_assembly, training, exceptional, federation_event]
+                date: { type: string, format: date }
+                mandatory: { type: boolean }
+      responses:
+        "201":
+          description: Activity created
+
+  /attendance:
+    post:
+      summary: Record attendance for an activity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [activityId, memberId, present, excused]
+              properties:
+                activityId: { type: string }
+                memberId: { type: string }
+                present: { type: boolean }
+                excused: { type: boolean }
+      responses:
+        "201":
+          description: Attendance recorded
+
+  /statistics/collectivity/{id}:
+    get:
+      summary: Get collectivity statistics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Statistics returned
+
+  /statistics/federation:
+    get:
+      summary: Get global federation monthly/annual report
+      parameters:
+        - name: startDate
+          in: query
+          schema: { type: string, format: date }
+        - name: endDate
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Federation statistics report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attendanceRateByCollectivity:
+                    type: object
+                    additionalProperties:
+                      type: number
+                      description: Percentage of attendance
+                  paymentComplianceByCollectivity:
+                    type: object
+                    additionalProperties:
+                      type: number
+                      description: members up to date
+                  newMembersByCollectivity:
+                    type: object
+                    additionalProperties:
+                      type: integer
+                      description: Number of new members

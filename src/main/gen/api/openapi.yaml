@@ -1,0 +1,387 @@
+openapi: 3.0.3
+info:
+  title: Federation Agricultural Management API
+  version: 1.0.0
+servers:
+- url: /
+paths:
+  /collectivities:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_collectivities_post_request'
+        required: true
+      responses:
+        "201":
+          description: Collectivity created
+      summary: Open a new agricultural collectivity
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /members:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_members_post_request'
+        required: true
+      responses:
+        "201":
+          description: Member admitted
+      summary: Admit a new member into a collectivity (B-2 updated rules)
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /contributions:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_contributions_post_request'
+        required: true
+      responses:
+        "201":
+          description: Contribution recorded
+      summary: Record a member contribution
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /accounts:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_accounts_post_request'
+        required: true
+      responses:
+        "201":
+          description: Account created
+      summary: Create a financial account
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /activities:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_activities_post_request'
+        required: true
+      responses:
+        "201":
+          description: Activity created
+      summary: Create an activity
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /attendance:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/_attendance_post_request'
+        required: true
+      responses:
+        "201":
+          description: Attendance recorded
+      summary: Record attendance for an activity
+      x-content-type: application/json
+      x-accepts:
+      - application/json
+  /statistics/collectivity/{id}:
+    get:
+      parameters:
+      - explode: false
+        in: path
+        name: id
+        required: true
+        schema:
+          type: string
+        style: simple
+      - explode: true
+        in: query
+        name: startDate
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: endDate
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      responses:
+        "200":
+          description: Statistics returned
+      summary: Get collectivity statistics
+      x-accepts:
+      - application/json
+  /statistics/federation:
+    get:
+      parameters:
+      - explode: true
+        in: query
+        name: startDate
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      - explode: true
+        in: query
+        name: endDate
+        required: false
+        schema:
+          format: date
+          type: string
+        style: form
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/_statistics_federation_get_200_response'
+          description: Federation statistics report
+      summary: Get global federation monthly/annual report
+      x-accepts:
+      - application/json
+components:
+  schemas:
+    _attendance_post_request:
+      properties:
+        activityId:
+          type: string
+        memberId:
+          type: string
+        present:
+          type: boolean
+        excused:
+          type: boolean
+      required:
+      - activityId
+      - excused
+      - memberId
+      - present
+      type: object
+    _members_post_request_sponsors_inner:
+      properties:
+        memberId:
+          type: string
+        collectivityId:
+          type: string
+        relation:
+          enum:
+          - family
+          - friend
+          - colleague
+          - other
+          type: string
+      required:
+      - collectivityId
+      - memberId
+      - relation
+      type: object
+    _accounts_post_request:
+      properties:
+        type:
+          enum:
+          - bank
+          - mobile_money
+          - cash
+          type: string
+        holderName:
+          type: string
+        balance:
+          type: number
+        bankName:
+          type: string
+        accountNumber:
+          type: string
+        phoneNumber:
+          type: string
+      required:
+      - balance
+      - holderName
+      - type
+      type: object
+    _activities_post_request:
+      properties:
+        name:
+          type: string
+        type:
+          enum:
+          - general_assembly
+          - training
+          - exceptional
+          - federation_event
+          type: string
+        date:
+          format: date
+          type: string
+        mandatory:
+          type: boolean
+      required:
+      - date
+      - mandatory
+      - name
+      - type
+      type: object
+    _members_post_request_payment:
+      properties:
+        adhesionFee:
+          description: Fixed membership fee
+          example: 50000
+          type: number
+        annualContributionPaid:
+          description: Must match collectivity annual contribution
+          type: number
+        method:
+          enum:
+          - mobile_money
+          - bank_transfer
+          type: string
+      required:
+      - adhesionFee
+      - annualContributionPaid
+      - method
+      type: object
+    _contributions_post_request:
+      properties:
+        memberId:
+          type: string
+        amount:
+          type: number
+        date:
+          format: date
+          type: string
+        type:
+          enum:
+          - monthly
+          - annual
+          - special
+          type: string
+        paymentMode:
+          enum:
+          - cash
+          - bank
+          - mobile_money
+          type: string
+      required:
+      - amount
+      - date
+      - memberId
+      - paymentMode
+      - type
+      type: object
+    _collectivities_post_request:
+      properties:
+        name:
+          type: string
+        city:
+          type: string
+        specialty:
+          type: string
+        creationDate:
+          format: date
+          type: string
+        members:
+          items:
+            type: string
+          minItems: 10
+          type: array
+        authorization:
+          type: boolean
+        annualContribution:
+          description: Annual contribution required by this collectivity (Ar)
+          type: number
+      required:
+      - annualContribution
+      - authorization
+      - city
+      - members
+      - name
+      - specialty
+      type: object
+    _members_post_request:
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        birthDate:
+          format: date
+          type: string
+        gender:
+          enum:
+          - F
+          - M
+          type: string
+        address:
+          type: string
+        job:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        collectivityId:
+          description: Target collectivity
+          type: string
+        sponsors:
+          description: Must contain at least 2 confirmed members from federations
+          items:
+            $ref: '#/components/schemas/_members_post_request_sponsors_inner'
+          minItems: 2
+          type: array
+        payment:
+          $ref: '#/components/schemas/_members_post_request_payment'
+      required:
+      - address
+      - birthDate
+      - collectivityId
+      - email
+      - firstName
+      - gender
+      - job
+      - lastName
+      - payment
+      - phone
+      - sponsors
+      type: object
+    _statistics_federation_get_200_response:
+      example:
+        attendanceRateByCollectivity:
+          key: 0.8008281904610115
+        newMembersByCollectivity:
+          key: 1
+        paymentComplianceByCollectivity:
+          key: 6.027456183070403
+      properties:
+        attendanceRateByCollectivity:
+          additionalProperties:
+            description: Percentage of attendance
+            type: number
+          type: object
+        paymentComplianceByCollectivity:
+          additionalProperties:
+            description: members up to date
+            type: number
+          type: object
+        newMembersByCollectivity:
+          additionalProperties:
+            description: Number of new members
+            type: integer
+          type: object
+      type: object
+
