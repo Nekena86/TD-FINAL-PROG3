@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: Fédération de Collectivités Agricoles API
+  description: API pour la gestion des collectivités agricoles à Madagascar
+  version: 1.0.0
+  contact:
+    name: Ryan A.
+
+servers:
+  - url: https://api.federation-agricole.mg/v1
+    description: Serveur de production
+  - url: http://localhost:8080/api/v1
+    description: Serveur de développement
+
+tags:
+  - name: Collectivités
+    description: Gestion des collectivités agricoles
+  - name: Membres
+    description: Gestion des membres
+
+paths:
+  /collectivities:
+    post:
+      tags:
+        - Collectivités
+      summary: Créer une nouvelle collectivité
+      description: Crée une nouvelle collectivité agricole après validation des conditions
+      operationId: createCollectivity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectivityCreateRequest'
+      responses:
+        '201':
+          description: Collectivité créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectivityResponse'
+        '400':
+          description: Données invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Autorisation de la fédération non accordée
+        '422':
+          description: Conditions non remplies
+
+  # NOUVELLE FONCTIONNALITÉ J - Attribution du numéro et nom unique
+  /collectivities/{collectivityId}/identifiers:
+    put:
+      tags:
+        - Collectivités
+      summary: Attribuer un numéro et un nom unique à une collectivité
+      description: |
+        La fédération attribue un numéro et un nom unique à une collectivité.
+        Une fois attribués, le numéro et le nom ne peuvent plus être modifiés.
+        - Le numéro doit être unique et composé de 3 à 10 caractères alphanumériques majuscules
+        - Le nom doit être unique et contenir entre 3 et 100 caractères
+      operationId: assignCollectivityIdentifiers
+      parameters:
+        - name: collectivityId
+          in: path
+          required: true
+          description: ID de la collectivité
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CollectivityIdentifierRequest'
+      responses:
+        '200':
+          description: Identifiants attribués avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectivityResponse'
+          headers:
+            X-Request-Id:
+              description: Identifiant unique de la requête
+              schema:
+                type: string
+              example: "550e8400-e29b-41d4-a716-446655440000"
+        '400':
+          description: Données invalides (format incorrect, nom ou numéro déjà existant)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Collectivité non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: La collectivité a déjà des identifiants attribués (ne peut plus être modifiée)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      x-code-samples:
+        - lang: curl
+          source: |
+            curl -X PUT https://api.federation-agricole.mg/v1/collectivities/1/identifiers \
+              -H "Content-Type: application/json" \
+              -d '{
+                "numero": "COL-001",
+                "nom": "Horizon Vert Antananarivo"
+              }'
+
+  /members:
+    post:
+      tags:
+        - Membres
+      summary: Adhésion d'un nouveau membre
+      description: Admission d'un nouveau membre selon les nouvelles conditions
+      operationId: createMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemberCreateRequest'
+      responses:
+        '201':
+          description: Membre admis avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MemberResponse'
+        '400':
+          description: Données invalides
+        '402':
+          description: Paiement requis
+        '422':
+          description: Conditions de parrainage non remplies
+
+components:
+  schemas:
+    CollectivityCreateRequest:
+      type: object
+      required:
+        - ville
+        - specialite
+        - autorisationFormelle
+        - membres
+      properties:
+        ville:
+          type: string
+          description: Localité de la collectivité
+          minLength: 2
+          maxLength: 100
+          example: "Antananarivo"
+        specialite:
+          type: string
+          description: Spécialité agricole
+          minLength: 2
+          maxLength: 100
+          example: "Riziculture"
+        autorisationFormelle:
+          type: boolean
+          description: Autorisation de la fédération
+          example: true
+        dateCreation:
+          type: string
+          format: date
+          description: Date de création (optionnelle, par défaut date du jour)
+          example: "2026-04-22"
+        membres:
+          type: array
+          minItems: 10
+          description: Liste des membres fondateurs (minimum 10)
+          items:
+            $ref: '#/components/schemas/MemberInitRequest'
+
+    MemberInitRequest:
+      type: object
+      required:
+        - nom
+        - prenom
+        - dateNaissance
+        - email
+        - telephone
+        - poste
+      properties:
+        nom:
+          type: string
+          minLength: 2
+          maxLength: 50
+        prenom:
+          type: string
+          minLength: 2
+          maxLength: 50
+        dateNaissance:
+          type: string
+          format: date
+        genre:
+          type: string
+          enum: [FEMININ, MASCULIN]
+        adresse:
+          type: string
+          maxLength: 200
+        metier:
+          type: string
+          maxLength: 100
+        telephone:
+          type: string
+          pattern: '^[0-9]{10}$'
+          description: Numéro téléphone (10 chiffres)
+        email:
+          type: string
+          format: email
+        poste:
+          type: string
+          enum: [PRESIDENT, PRESIDENT_ADJOINT, TRESORIER, SECRETAIRE, MEMBRE_CONFIRME, MEMBRE_JUNIOR]
+          description: Poste du membre dans la collectivité
+        ancienneteFederation:
+          type: integer
+          minimum: 180
+          description: Ancienneté en jours au sein de la fédération (minimum 180 jours soit 6 mois)
+
+    # NOUVEAU SCHÉMA - Requête d'attribution d'identifiants
+    CollectivityIdentifierRequest:
+      type: object
+      required:
+        - numero
+        - nom
+      properties:
+        numero:
+          type: string
+          description: Numéro unique de la collectivité attribué par la fédération
+          pattern: '^[A-Z0-9]{3,10}$'
+          minLength: 3
+          maxLength: 10
+          example: "COL-001"
+        nom:
+          type: string
+          description: Nom unique de la collectivité attribué par la fédération
+          minLength: 3
+          maxLength: 100
+          example: "Horizon Vert Antananarivo"
+
+    CollectivityResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: ID technique de la collectivité
+          example: 1
+        numero:
+          type: string
+          description: Numéro unique attribué par la fédération
+          nullable: true
+          example: "COL-001"
+        nom:
+          type: string
+          description: Nom unique attribué par la fédération
+          nullable: true
+          example: "Horizon Vert Antananarivo"
+        ville:
+          type: string
+          description: Localité de la collectivité
+          example: "Antananarivo"
+        specialite:
+          type: string
+          description: Spécialité agricole
+          example: "Riziculture"
+        dateCreation:
+          type: string
+          format: date
+          description: Date de création
+          example: "2026-04-22"
+        statut:
+          type: string
+          enum: [ACTIVE, EN_ATTENTE, SUSPENDUE]
+          description: Statut de la collectivité
+          example: "ACTIVE"
+        nombreMembres:
+          type: integer
+          description: Nombre de membres dans la collectivité
+          example: 15
+
+    MemberCreateRequest:
+      type: object
+      required:
+        - nom
+        - prenom
+        - dateNaissance
+        - email
+        - telephone
+        - collectivityId
+        - parrains
+        - relationsParrainage
+      properties:
+        nom:
+          type: string
+          minLength: 2
+          maxLength: 50
+        prenom:
+          type: string
+          minLength: 2
+          maxLength: 50
+        dateNaissance:
+          type: string
+          format: date
+        genre:
+          type: string
+          enum: [FEMININ, MASCULIN]
+        adresse:
+          type: string
+          maxLength: 200
+        metier:
+          type: string
+          maxLength: 100
+        telephone:
+          type: string
+          pattern: '^[0-9]{10}$'
+        email:
+          type: string
+          format: email
+        collectivityId:
+          type: integer
+          format: int64
+        parrains:
+          type: array
+          minItems: 2
+          items:
+            type: integer
+            format: int64
+        relationsParrainage:
+          type: array
+          minItems: 2
+          items:
+            type: string
+            enum: [FAMILLE, AMIS, COLLEGUES, AUTRE]
+        modePaiement:
+          type: string
+          enum: [MOBILE_MONEY, VIREMENT_BANCAIRE]
+        referencePaiement:
+          type: string
+
+    MemberResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        nom:
+          type: string
+        prenom:
+          type: string
+        email:
+          type: string
+        telephone:
+          type: string
+        poste:
+          type: string
+        dateAdhesion:
+          type: string
+          format: date
+        collectivityId:
+          type: integer
+        statut:
+          type: string
+          enum: [ACTIF, INACTIF, A_VERIFIER]
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: Code d'erreur HTTP
+          example: 400
+        message:
+          type: string
+          description: Message d'erreur
+          example: "Le numéro existe déjà"
+        details:
+          type: string
+          description: Détails supplémentaires
+          example: "Le numéro COL-001 est déjà utilisé par une autre collectivité"
+        timestamp:
+          type: string
+          format: date-time
+          description: Horodatage de l'erreur
+          example: "2026-04-22T10:30:00Z"
