@@ -81,4 +81,12 @@ public class MemberRepository {
         }
         return false;
     }
+
+    public boolean existsById(Long id) {
+        if (id == null) {
+            return false;
+        }
+        return this.members.containsKey(id);
+    }
+}
 }
