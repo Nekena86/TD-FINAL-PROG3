@@ -69,6 +69,13 @@ public class CollectivityRepository {
         return null;
     }
 
+    public boolean existsById(Long id) {
+        if (id == null) {
+            return false;
+        }
+        return this.collectivities.containsKey(id);
+    }
+
     public void deleteById(Long id) {
         this.collectivities.remove(id);
     }

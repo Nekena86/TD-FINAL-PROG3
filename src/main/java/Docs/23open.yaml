@@ -1,0 +1,228 @@
+openapi: 3.0.3
+info:
+  title: Federation of Agricultural Communities API
+  description: API for managing agricultural communities in Madagascar
+  version: 1.0.0
+
+servers:
+  - url: https://api.federation-agricole.mg/v1
+    description: Production server
+  - url: http://localhost:8080/api/v1
+    description: Development server
+
+tags:
+  - name: Communities
+    description: Management of agricultural communities
+  - name: Members
+    description: Management of members
+  - name: Accounts
+    description: Management of financial accounts
+
+paths:
+  /collectivities/{id}:
+    get:
+      tags:
+        - Communities
+      summary: Get a community by ID
+      description: Returns community details with the list of its members
+      operationId: getCollectivityById
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Community ID
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 1
+      responses:
+        '200':
+          description: Community found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CollectivityDetailResponse'
+        '404':
+          description: Community not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /collectivities/{id}/financialAccounts:
+    get:
+      tags:
+        - Accounts
+      summary: Get financial accounts of a community
+      description: Returns the list of accounts (cash, mobile money, bank) with their balance at a given date
+      operationId: getFinancialAccounts
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Community ID
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
+          example: 1
+        - name: at
+          in: query
+          required: false
+          description: Date to calculate the balance (format YYYY-MM-DD). Defaults to current date.
+          schema:
+            type: string
+            format: date
+          example: "2026-04-23"
+      responses:
+        '200':
+          description: List of financial accounts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FinancialAccountResponse'
+        '400':
+          description: Invalid date
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Community not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    CollectivityDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        numero:
+          type: string
+          nullable: true
+          example: "COL-001"
+        name:
+          type: string
+          nullable: true
+          example: "Horizon Vert Antananarivo"
+        city:
+          type: string
+          example: "Antananarivo"
+        specialty:
+          type: string
+          example: "Rice farming"
+        creationDate:
+          type: string
+          format: date
+          example: "2026-04-23"
+        status:
+          type: string
+          enum: [ACTIVE, PENDING, SUSPENDED]
+          example: "ACTIVE"
+        members:
+          type: array
+          description: List of community members
+          items:
+            $ref: '#/components/schemas/MemberSummaryResponse'
+
+    MemberSummaryResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        lastName:
+          type: string
+          example: "Rakoto"
+        firstName:
+          type: string
+          example: "Jean"
+        email:
+          type: string
+          example: "jean.rakoto@email.com"
+        phone:
+          type: string
+          example: "0341234567"
+        position:
+          type: string
+          enum: [PRESIDENT, VICE_PRESIDENT, TREASURER, SECRETARY, SENIOR_MEMBER, JUNIOR_MEMBER]
+          example: "PRESIDENT"
+        membershipDate:
+          type: string
+          format: date
+          example: "2026-01-15"
+        status:
+          type: string
+          enum: [ACTIVE, INACTIVE, PENDING_VERIFICATION]
+          example: "ACTIVE"
+
+    FinancialAccountResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Account ID
+          example: 1
+        type:
+          type: string
+          enum: [CASH, BANK, MOBILE_MONEY]
+          description: Account type
+          example: "CASH"
+        label:
+          type: string
+          description: Account description (bank name, mobile money service, or "Cash")
+          example: "Main cash register"
+        balance:
+          type: number
+          format: double
+          description: Account balance at the requested date
+          example: 150000.00
+        details:
+          type: object
+          description: Specific information based on account type
+          properties:
+            holder:
+              type: string
+              description: Account holder name
+              example: "Jean Rakoto"
+            bank:
+              type: string
+              description: Bank name (for BANK type)
+              example: "MCB"
+            accountNumber:
+              type: string
+              description: Account number (for BANK type)
+              example: "12345-67890-12345678901-12"
+            service:
+              type: string
+              description: Mobile money service (for MOBILE_MONEY type)
+              example: "Mvola"
+            phoneNumber:
+              type: string
+              description: Phone number (for MOBILE_MONEY type)
+              example: "0341234567"
+
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 404
+        message:
+          type: string
+          example: "Community not found"
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-04-23T08:30:00Z"
