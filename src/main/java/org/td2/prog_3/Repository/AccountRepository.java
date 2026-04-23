@@ -23,12 +23,11 @@ public class AccountRepository {
         this.transactionsByCompte = new ConcurrentHashMap<>();
         this.currentId = new AtomicLong(1);
 
-        // Compte caisse par défaut pour la collectivité 1
         initDefaultAccounts();
     }
 
     private void initDefaultAccounts() {
-        // Compte caisse pour collectivité 1
+
         FinancialAccount caisse = new FinancialAccount();
         caisse.setId(currentId.getAndIncrement());
         caisse.setType("CAISSE");
@@ -38,7 +37,6 @@ public class AccountRepository {
         Accounts.put(caisse.getId(), caisse);
         transactionsByCompte.put(caisse.getId(), new ArrayList<>());
 
-        // Compte bancaire pour collectivité 1
         FinancialAccount bancaire = new FinancialAccount();
         bancaire.setId(currentId.getAndIncrement());
         bancaire.setType("BANCAIRE");
@@ -51,7 +49,6 @@ public class AccountRepository {
         Accounts.put(bancaire.getId(), bancaire);
         transactionsByCompte.put(bancaire.getId(), new ArrayList<>());
 
-        // Compte mobile money pour collectivité 1
         FinancialAccount mobile = new FinancialAccount();
         mobile.setId(currentId.getAndIncrement());
         mobile.setType("MOBILE_MONEY");
