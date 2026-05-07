@@ -1,9 +1,4 @@
--- =====================================================
--- SCHEMA DE LA BASE DE DONNÉES
--- Fédération de collectivités agricoles
--- =====================================================
-
--- Suppression des tables existantes (ordre inverse des dépendances)
+-- Suppression des tables existantes
 DROP TABLE IF EXISTS transaction CASCADE;
 DROP TABLE IF EXISTS payment CASCADE;
 DROP TABLE IF EXISTS membership_fee CASCADE;

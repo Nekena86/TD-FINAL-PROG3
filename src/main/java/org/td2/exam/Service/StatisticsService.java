@@ -33,23 +33,19 @@ public class StatisticsService {
         this.membershipFeeRepository = membershipFeeRepository;
     }
 
-    /**
-     * GET /collectivites/{id}/statistics
-     * Retourne pour chaque membre: montant encaissé + montant impayé potentiel
-     */
+
     public Map<String, Object> getCollectivityStatistics(String collectivityId, LocalDate startDate, LocalDate endDate) {
-        // Vérification que la collectivité existe
+
         if (!collectivityRepository.existsById(collectivityId)) {
             throw new BusinessException("Collectivity not found");
         }
 
         Map<String, Object> result = new HashMap<>();
 
-        // Push Down Processing: calcul direct en SQL
         Map<String, Integer> amountCollected = statisticsRepository.getAmountCollectedByMember(collectivityId, startDate, endDate);
         Map<String, Integer> potentialUnpaid = statisticsRepository.getPotentialUnpaidByMember(collectivityId, startDate);
 
-        // Construction du résultat
+
         Map<String, Statistics.MemberStatistics> memberStats = new HashMap<>();
         Set<String> allMemberIds = new HashSet<>();
         allMemberIds.addAll(amountCollected.keySet());
@@ -68,10 +64,6 @@ public class StatisticsService {
         return result;
     }
 
-    /**
-     * GET /collectivities/statistics
-     * Retourne pour chaque collectivité: pourcentage de membres à jour + nombre de nouveaux adhérents
-     */
     public List<Map<String, Object>> getAllCollectivitiesStatistics(LocalDate startDate, LocalDate endDate) {
         List<Map<String, Object>> result = new ArrayList<>();
 
@@ -82,12 +74,10 @@ public class StatisticsService {
             stats.put("collectivityId", collectivity.getId());
             stats.put("collectivityName", collectivity.getNom());
 
-            // Push Down Processing: calcul du pourcentage de membres à jour
             BigDecimal percentageUpToDate = statisticsRepository.getPercentageUpToDateMembers(
                     collectivity.getId(), startDate, endDate);
             stats.put("percentageUpToDate", percentageUpToDate);
 
-            // Push Down Processing: comptage des nouveaux adhérents
             int newMembersCount = statisticsRepository.getNewMembersCount(collectivity.getId(), startDate, endDate);
             stats.put("newMembersCount", newMembersCount);
 

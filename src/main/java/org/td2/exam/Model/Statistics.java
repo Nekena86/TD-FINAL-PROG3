@@ -4,11 +4,7 @@ import java.math.BigDecimal;
 import java.util.Map;
 
 public class Statistics {
-
-    // Pour GET /collectivites/{id}/statistics
     private Map<String, MemberStatistics> memberStatistics;
-
-    // Pour GET /collectivities/statistics
     private String collectivityId;
     private String collectivityName;
     private BigDecimal percentageUpToDate;
@@ -65,7 +61,7 @@ public class Statistics {
         this.globalAttendanceRate = globalAttendanceRate;
     }
 
-    // Classe interne pour les statistiques par membre
+
     public static class MemberStatistics {
         private BigDecimal totalCollected;
         private BigDecimal potentialUnpaid;

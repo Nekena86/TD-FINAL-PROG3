@@ -64,7 +64,7 @@ public class MembershipFeeRepository {
         }
     }
 
-    // NOUVEAU: Récupérer uniquement les cotisations actives avec calcul du montant total annuel
+
     public int getTotalActiveAnnualFee(String collectivityId, LocalDate periodStartDate) {
         String sql = "SELECT COALESCE(SUM(montant), 0) FROM membership_fee " +
                 "WHERE collectivity_id = ? AND statut = 'ACTIVE' AND eligible_depuis <= ? " +
@@ -83,7 +83,7 @@ public class MembershipFeeRepository {
         }
     }
 
-    // NOUVEAU: Mettre à jour le statut d'une cotisation
+
     public void updateStatut(String id, String statut) {
         String sql = "UPDATE membership_fee SET statut = ? WHERE id = ?";
         try (Connection conn = dataSource.getConnection();

@@ -19,10 +19,7 @@ public class StatisticsRepository {
         this.dataSource = dataSource;
     }
 
-    /**
-     * PUSH DOWN PROCESSING: Calcul du montant encaissé par membre sur une période
-     * Le calcul est fait directement en SQL avec SUM et GROUP BY
-     */
+
     public Map<String, Integer> getAmountCollectedByMember(String collectivityId, LocalDate startDate, LocalDate endDate) {
         String sql = "SELECT member_id, COALESCE(SUM(montant), 0) as total_collected " +
                 "FROM payment " +
@@ -45,10 +42,7 @@ public class StatisticsRepository {
         }
     }
 
-    /**
-     * PUSH DOWN PROCESSING: Calcul du montant impayé potentiel par membre
-     * Jointure entre les membres et les cotisations actives, soustraction des paiements existants
-     */
+
     public Map<String, Integer> getPotentialUnpaidByMember(String collectivityId, LocalDate periodStartDate) {
         String sql = "SELECT m.id as member_id, " +
                 "GREATEST(0, (SELECT COALESCE(SUM(mf.montant), 0) FROM membership_fee mf " +
@@ -72,10 +66,7 @@ public class StatisticsRepository {
         }
     }
 
-    /**
-     * PUSH DOWN PROCESSING: Calcul du pourcentage de membres à jour de cotisation
-     * Ratio entre membres ayant payé le total des cotisations actives et nombre total de membres
-     */
+
     public BigDecimal getPercentageUpToDateMembers(String collectivityId, LocalDate periodStartDate, LocalDate periodEndDate) {
         String sql = "WITH active_fee_total AS ( " +
                 "  SELECT COALESCE(SUM(montant), 0) as total_fee " +
@@ -115,9 +106,7 @@ public class StatisticsRepository {
         }
     }
 
-    /**
-     * PUSH DOWN PROCESSING: Comptage des nouveaux adhérents sur une période
-     */
+
     public int getNewMembersCount(String collectivityId, LocalDate startDate, LocalDate endDate) {
         String sql = "SELECT COUNT(*) FROM member " +
                 "WHERE collectivity_id = ? AND date_adhesion BETWEEN ? AND ?";
@@ -136,9 +125,7 @@ public class StatisticsRepository {
         }
     }
 
-    /**
-     * PUSH DOWN PROCESSING: Récupération des statistiques pour toutes les collectivités
-     */
+
     public Map<String, Object> getAllCollectivitiesStatistics(LocalDate startDate, LocalDate endDate) {
         String sql = "SELECT " +
                 "  c.id as collectivity_id, " +
@@ -164,7 +151,7 @@ public class StatisticsRepository {
                 int totalMembers = rs.getInt("total_members");
                 int totalFee = rs.getInt("total_fee");
 
-                // Calcul du nombre de membres à jour
+
                 String paidSql = "SELECT COUNT(DISTINCT p.member_id) as paid_count " +
                         "FROM payment p " +
                         "WHERE p.collectivity_id = ? AND p.date_paiement BETWEEN ? AND ? " +

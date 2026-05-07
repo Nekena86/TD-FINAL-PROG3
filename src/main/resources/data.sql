@@ -1,6 +1,3 @@
--- =====================================================
--- DONNÉES DE TEST - Pages 24 à 29
--- =====================================================
 
 -- =====================================================
 -- 1. COLLECTIVITÉS (Tableau 1)
@@ -48,7 +45,7 @@ INSERT INTO member (id, collectivity_id, nom, prenom, date_naissance, genre, adr
                                                                                                                                                                   ('C3-M8', 'col-3', 'Nom membre 16', 'Prénom membre 16', '1975-08-02', 'M', 'Lot UV 8 Antsirabe', 'Apiculteur', '0370634567', 'member.16@fed-agri.mg', 'CONFIRMED', 'C3-M1,C3-M2', '2026-01-01');
 
 -- =====================================================
--- 3. COMPTES FINANCIERS (page 24)
+-- 3. COMPTES FINANCIERS
 -- =====================================================
 
 -- Comptes existants
@@ -68,7 +65,7 @@ INSERT INTO financial_account (id, collectivity_id, type, balance, holder_name, 
     ('C3-A-MOBILE-1', 'col-3', 'MVOLA', 0, 'Kolo', '0341889612');
 
 -- =====================================================
--- 4. COTISATIONS (pages 24-25)
+-- 4. COTISATIONS
 -- =====================================================
 
 -- Collectivité 1 (Tableau 12)
