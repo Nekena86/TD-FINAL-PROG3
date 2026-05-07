@@ -1,0 +1,1273 @@
+openapi: 3.0.0
+info:
+  title: API Fédération des Collectivités Agricoles de Madagascar
+  description: |
+    API pour la gestion digitalisée des collectivités agricoles à Madagascar.
+    Permet la gestion des collectivités, membres, cotisations, comptabilité,
+    activités, assiduité et statistiques.
+  version: 2.0.0
+  contact:
+    name: Support Fédération Agricole
+    email: support@federation-agricole.mg
+servers:
+  - url: https://api.federation-agricole.mg/v1
+    description: Serveur de production
+  - url: https://sandbox-api.federation-agricole.mg/v1
+    description: Environnement de test
+
+tags:
+  - name: Collectivités
+    description: Gestion des collectivités agricoles
+  - name: Membres
+    description: Gestion des membres et adhésions
+  - name: Cotisations
+    description: Gestion des cotisations et paiements
+  - name: Comptabilité
+    description: Gestion des comptes et trésorerie
+  - name: Activités
+    description: Gestion des activités obligatoires et exceptionnelles
+  - name: Assiduité
+    description: Gestion des présences aux activités
+  - name: Statistiques
+    description: Rapports et statistiques
+  - name: Fédération
+    description: Gestion au niveau fédéral
+
+components:
+  schemas:
+    # ========== SCHÉMAS RÉUTILISABLES ==========
+
+    Erreur:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: "Erreur de validation"
+        details:
+          type: array
+          items:
+            type: string
+
+    MembreRef:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 123
+        nom:
+          type: string
+          example: "Rakoto"
+        prenom:
+          type: string
+          example: "Jean"
+        email:
+          type: string
+          format: email
+          example: "jean.rakoto@email.mg"
+
+    Parrain:
+      type: object
+      required:
+        - membre_id
+        - nature_relation
+        - collectivite_id
+      properties:
+        membre_id:
+          type: integer
+          description: ID du membre parrain (doit être membre confirmé avec ancienneté > 90 jours)
+        nature_relation:
+          type: string
+          enum: [famille, ami, collegue, autre]
+          description: Nature de la relation entre le candidat et le parrain
+        collectivite_id:
+          type: integer
+          description: Collectivité d'appartenance du parrain
+
+    MembreInscription:
+      type: object
+      required:
+        - nom
+        - prenom
+        - date_naissance
+        - genre
+        - adresse
+        - metier
+        - telephone
+        - email
+        - parrains
+      properties:
+        nom:
+          type: string
+          minLength: 2
+          maxLength: 50
+        prenom:
+          type: string
+          minLength: 2
+          maxLength: 50
+        date_naissance:
+          type: string
+          format: date
+        genre:
+          type: string
+          enum: [feminin, masculin]
+        adresse:
+          type: string
+          maxLength: 200
+        metier:
+          type: string
+          maxLength: 100
+        telephone:
+          type: string
+          pattern: '^[0-9]{10}$'
+        email:
+          type: string
+          format: email
+        parrains:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/Parrain'
+          description: |
+            Règle de validation : 
+            - Au moins 2 parrains membres confirmés
+            - Le nombre de parrains issus de la collectivité cible doit être >= au nombre de parrains d'autres collectivités
+
+    PosteSpecifique:
+      type: string
+      enum: [president, president_adjoint, tresorier, secretaire, membre_confirme, membre_junior]
+
+    CompteBancaire:
+      type: object
+      required:
+        - titulaire
+        - banque
+        - numero_compte
+      properties:
+        titulaire:
+          type: string
+        banque:
+          type: string
+          enum: [BRED, MCB, BMOI, BOA, BGFI, AFG, ACCES_BANQUE, BAOBAB, SIPEM]
+        numero_compte:
+          type: string
+          pattern: '^\d{23}$'
+          description: "23 chiffres (5 banque + 5 guichet + 11 compte + 2 clé RIB)"
+
+    CompteMobileMoney:
+      type: object
+      required:
+        - titulaire
+        - service
+        - numero_telephone
+      properties:
+        titulaire:
+          type: string
+        service:
+          type: string
+          enum: [Orange_Money, Mvola, Airtel_Money]
+        numero_telephone:
+          type: string
+          pattern: '^[0-9]{10}$'
+
+    Activite:
+      type: object
+      properties:
+        id:
+          type: integer
+        titre:
+          type: string
+        date:
+          type: string
+          format: date-time
+        obligatoire:
+          type: boolean
+        membres_concernes:
+          type: array
+          items:
+            $ref: '#/components/schemas/MembreRef'
+        description:
+          type: string
+
+    # ========== NOUVEAU H : STATISTIQUES FÉDÉRATION ==========
+    RapportFederation:
+      type: object
+      properties:
+        periode:
+          type: object
+          properties:
+            date_debut:
+              type: string
+              format: date
+            date_fin:
+              type: string
+              format: date
+        statistiques_collectivites:
+          type: array
+          items:
+            $ref: '#/components/schemas/StatistiquesCollectivite'
+        date_generation:
+          type: string
+          format: date-time
+
+    StatistiquesCollectivite:
+      type: object
+      properties:
+        collectivite_id:
+          type: integer
+        nom_collectivite:
+          type: string
+        ville:
+          type: string
+        taux_assiduite_global:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Taux d'assiduité global de la collectivité sur la période
+        pourcentage_membres_a_jour_cotisation:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 100
+          description: Pourcentage de membres à jour de leur cotisation
+        nombre_nouveaux_adherents:
+          type: integer
+          description: Nombre de nouveaux adhérents sur la période
+        classement_assiduite:
+          type: integer
+          description: Classement basé sur le taux d'assiduité
+        classement_cotisation:
+          type: integer
+          description: Classement basé sur le pourcentage de membres à jour
+        classement_nouveaux_membres:
+          type: integer
+          description: Classement basé sur le nombre de nouveaux adhérents
+    CompteCaisse:
+      type: object
+            properties:
+              type:
+                type: string
+                example: "caisse"
+              solde_actuel:
+                type: integer
+
+  parameters:
+    IdCollectiviteParam:
+      name: id_collectivite
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Identifiant unique de la collectivité
+
+    IdMembreParam:
+      name: id_membre
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Identifiant unique du membre
+
+    IdActiviteParam:
+      name: id_activite
+      in: path
+      required: true
+      schema:
+        type: integer
+      description: Identifiant unique de l'activité
+
+# ========== ENDPOINTS PAR FONCTIONNALITÉ ==========
+
+paths:
+  # ========== A - OUVERTURE D'UNE NOUVELLE COLLECTIVITÉ ==========
+  /collectivites:
+    post:
+      tags:
+        - Collectivités
+      summary: Créer une nouvelle collectivité agricole
+      description: |
+        Crée une nouvelle collectivité après validation des conditions :
+        - Au moins 10 membres dont 5 avec ancienneté ≥ 6 mois
+        - Postes spécifiques pourvus
+        - Autorisation formelle de la fédération
+      operationId: creerCollectivite
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - nom
+                - ville
+                - specialite
+                - membres_fondateurs
+                - autorisation
+                - cotisation_annuelle
+              properties:
+                nom:
+                  type: string
+                  example: "Collectivité du Sud"
+                ville:
+                  type: string
+                  example: "Toliara"
+                specialite:
+                  type: string
+                  example: "Maraîchage"
+                cotisation_annuelle:
+                  type: integer
+                  description: "Montant de la cotisation annuelle imposée par la collectivité (en MGA)"
+                  example: 200000
+                membres_fondateurs:
+                  type: array
+                  minItems: 10
+                  items:
+                    type: object
+                    required:
+                      - membre_id
+                      - poste
+                    properties:
+                      membre_id:
+                        type: integer
+                      poste:
+                        $ref: '#/components/schemas/PosteSpecifique'
+                autorisation:
+                  type: boolean
+                  description: Doit être true pour validation
+                date_creation:
+                  type: string
+                  format: date
+                  description: Optionnel, par défaut date du jour
+      responses:
+        '201':
+          description: Collectivité créée avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id_collectivite:
+                    type: integer
+                    example: 42
+                  nom:
+                    type: string
+                  date_creation:
+                    type: string
+                    format: date
+                  statut:
+                    type: string
+                    example: "active"
+        '400':
+          description: Conditions non remplies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '403':
+          description: Autorisation refusée par la fédération
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+        '409':
+          description: Un numéro unique de collectivité existe déjà
+
+  # ========== B-2 - ADMISSION D'UN NOUVEAU MEMBRE (VERSION MISE À JOUR) ==========
+  /collectivites/{id_collectivite}/membres:
+    post:
+      tags:
+        - Membres
+      summary: Adhérer à une collectivité (Nouvelle version)
+      description: |
+        Permet à un nouveau membre d'adhérer à une collectivité.
+        **NOUVELLES CONDITIONS (B-2) :**
+        - Être parrainé par au moins 2 membres confirmés (ancienneté > 90 jours)
+        - Règle : nombre de parrains de la collectivité cible >= nombre de parrains externes
+        - Fournir la nature de la relation avec chaque parrain
+        - Payer les frais d'adhésion (50 000 MGA) + l'intégralité des cotisations annuelles obligatoires
+      operationId: ajouterMembreV2
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parrains
+                - informations_personnelles
+                - paiement
+              properties:
+                parrains:
+                  type: array
+                  minItems: 2
+                  items:
+                    $ref: '#/components/schemas/Parrain'
+                informations_personnelles:
+                  $ref: '#/components/schemas/MembreInscription'
+                paiement:
+                  type: object
+                  required:
+                    - frais_adhesion
+                    - cotisation_annuelle
+                  properties:
+                    frais_adhesion:
+                      type: object
+                      required:
+                        - montant
+                        - mode_paiement
+                      properties:
+                        montant:
+                          type: integer
+                          example: 50000
+                          minimum: 50000
+                        mode_paiement:
+                          type: string
+                          enum: [mobile_money, virement_bancaire]
+                        reference_transaction:
+                          type: string
+                    cotisation_annuelle:
+                      type: object
+                      required:
+                        - montant
+                        - mode_paiement
+                      properties:
+                        montant:
+                          type: integer
+                          description: Doit correspondre au montant défini par la collectivité
+                          example: 200000
+                        mode_paiement:
+                          type: string
+                          enum: [mobile_money, virement_bancaire]
+                        reference_transaction:
+                          type: string
+      responses:
+        '201':
+          description: Membre admis avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id_membre:
+                    type: integer
+                  date_adhesion:
+                    type: string
+                    format: date
+                  statut:
+                    type: string
+                    example: "membre_junior"
+                  montant_total_paye:
+                    type: integer
+                    example: 250000
+        '400':
+          description: Conditions non remplies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+              examples:
+                parrains_insuffisants:
+                  value:
+                    code: 400
+                    message: "Nombre de parrains insuffisant. Minimum 2 requis."
+                regle_parrainage_non_respectee:
+                  value:
+                    code: 400
+                    message: "Règle de parrainage non respectée : le nombre de parrains de la collectivité cible doit être supérieur ou égal au nombre de parrains externes"
+                relation_requise:
+                  value:
+                    code: 400
+                    message: "La nature de la relation avec chaque parrain est requise"
+        '402':
+          description: Paiement requis non effectué
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+              examples:
+                paiement_insuffisant:
+                  value:
+                    code: 402
+                    message: "Paiement requis : 50 000 Ar (frais adhésion) + cotisation annuelle de la collectivité"
+        '404':
+          description: Collectivité ou parrain non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erreur'
+
+    # Changer de collectivité (inchangé)
+    put:
+      tags:
+        - Membres
+      summary: Changer de collectivité
+      operationId: changerCollectivite
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - id_membre
+                - nouvelle_collectivite_id
+              properties:
+                id_membre:
+                  type: integer
+                nouvelle_collectivite_id:
+                  type: integer
+      responses:
+        '200':
+          description: Changement effectué
+
+  /membres/{id_membre}/demission:
+    post:
+      tags:
+        - Membres
+      summary: Démissionner d'une collectivité
+      operationId: demissionner
+      parameters:
+        - $ref: '#/components/parameters/IdMembreParam'
+      responses:
+        '200':
+          description: Démission enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statut:
+                    type: string
+                    example: "ancien_membre"
+                  date_demission:
+                    type: string
+                    format: date
+
+  # ========== C - COTISATIONS ET PAIEMENTS ==========
+  /collectivites/{id_collectivite}/cotisations:
+    post:
+      tags:
+        - Cotisations
+      summary: Enregistrer une cotisation
+      description: |
+        Le trésorier enregistre une cotisation perçue.
+        Un pourcentage est automatiquement reversé à la fédération.
+      operationId: enregistrerCotisation
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - membre_id
+                - montant
+                - type_cotisation
+                - mode_paiement
+              properties:
+                membre_id:
+                  type: integer
+                montant:
+                  type: integer
+                  minimum: 1
+                type_cotisation:
+                  type: string
+                  enum: [mensuelle, annuelle, ponctuelle]
+                date_encaissement:
+                  type: string
+                  format: date
+                mode_paiement:
+                  type: string
+                  enum: [especes, virement_bancaire, mobile_money]
+                reference:
+                  type: string
+      responses:
+        '201':
+          description: Cotisation enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id_cotisation:
+                    type: integer
+                  montant_verse_federation:
+                    type: integer
+                    description: Montant reversé à la fédération (pourcentage défini par la fédération)
+                  date_encaissement:
+                    type: string
+                    format: date
+
+  # Reversement à la fédération
+  /federation/reversements:
+    post:
+      tags:
+        - Cotisations
+      summary: Reversement des cotisations à la fédération
+      description: Effectué automatiquement ou manuellement par le trésorier de la collectivité
+      operationId: reverserAFederation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - collectivite_id
+                - montant
+              properties:
+                collectivite_id:
+                  type: integer
+                montant:
+                  type: integer
+                date_reversement:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Reversement enregistré
+
+  # ========== D - SITUATION DE TRÉSORERIE ==========
+  /collectivites/{id_collectivite}/comptes:
+    get:
+      tags:
+        - Comptabilité
+      summary: Liste tous les comptes d'une collectivité
+      operationId: listerComptes
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      responses:
+        '200':
+          description: Liste des comptes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  caisse:
+                    $ref: '#/components/schemas/CompteCaisse'
+                  comptes_bancaires:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CompteBancaire'
+                  comptes_mobile_money:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CompteMobileMoney'
+
+    post:
+      tags:
+        - Comptabilité
+      summary: Créer un compte pour une collectivité
+      operationId: creerCompte
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/CompteBancaire'
+                - $ref: '#/components/schemas/CompteMobileMoney'
+      responses:
+        '201':
+          description: Compte créé
+
+  /comptes/{id_compte}/solde:
+    get:
+      tags:
+        - Comptabilité
+      summary: Obtenir le solde d'un compte à une date donnée
+      operationId: getSolde
+      parameters:
+        - name: id_compte
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: date
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Par défaut, date du jour
+      responses:
+        '200':
+          description: Solde du compte
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  solde:
+                    type: integer
+                  devise:
+                    type: string
+                    example: "MGA"
+                  date:
+                    type: string
+                    format: date
+
+  # ========== E - ACTIVITÉS ==========
+  /collectivites/{id_collectivite}/activites/obligatoire:
+    post:
+      tags:
+        - Activités
+      summary: Créer une activité obligatoire récurrente
+      description: |
+        Exemple : Assemblée générale mensuelle (tous les 2ème dimanche)
+        ou formation junior (tous les 4ème samedi)
+      operationId: creerActiviteObligatoire
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - type_activite
+                - regle_recurrence
+              properties:
+                type_activite:
+                  type: string
+                  enum: [assemblee_generale, formation_junior]
+                regle_recurrence:
+                  type: string
+                  description: "Règle cron ou description ex: 'deuxieme_dimanche_mois'"
+                date_debut:
+                  type: string
+                  format: date
+      responses:
+        '201':
+          description: Activité obligatoire créée
+
+  /collectivites/{id_collectivite}/activites/exceptionnelle:
+    post:
+      tags:
+        - Activités
+      summary: Créer une activité exceptionnelle
+      operationId: creerActiviteExceptionnelle
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - titre
+                - date
+              properties:
+                titre:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                description:
+                  type: string
+                presence_obligatoire:
+                  type: boolean
+                membres_concernes:
+                  type: array
+                  items:
+                    type: integer
+                  description: "IDs des membres concernés (si restreint)"
+      responses:
+        '201':
+          description: Activité exceptionnelle créée
+
+  /collectivites/{id_collectivite}/activites:
+    get:
+      tags:
+        - Activités
+      summary: Lister toutes les activités d'une collectivité
+      operationId: listerActivites
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+        - name: date_debut
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: date_fin
+          in: query
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Liste des activités
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Activite'
+
+  /federation/activites:
+    post:
+      tags:
+        - Activités
+      summary: La fédération planifie une activité nationale
+      operationId: planifierActiviteFederation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - titre
+                - date
+                - collectivites_invitees
+              properties:
+                titre:
+                  type: string
+                date:
+                  type: string
+                  format: date-time
+                obligatoire:
+                  type: boolean
+                collectivites_invitees:
+                  type: array
+                  items:
+                    type: integer
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Activité fédérale planifiée
+
+  # ========== F - ASSIDUITÉ ==========
+  /activites/{id_activite}/presences:
+    post:
+      tags:
+        - Assiduité
+      summary: Enregistrer les présences à une activité
+      description: Le secrétaire de la collectivité saisit les présences
+      operationId: enregistrerPresences
+      parameters:
+        - $ref: '#/components/parameters/IdActiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                required:
+                  - membre_id
+                properties:
+                  membre_id:
+                    type: integer
+                  present:
+                    type: boolean
+                    default: true
+                  excuse:
+                    type: boolean
+                    default: false
+                  motif_absence:
+                    type: string
+                  collectivite_visiteuse_id:
+                    type: integer
+                    description: "Si le membre vient d'une autre collectivité"
+      responses:
+        '201':
+          description: Présences enregistrées
+
+  /membres/{id_membre}/assiduite:
+    get:
+      tags:
+        - Assiduité
+      summary: Taux d'assiduité d'un membre sur une période
+      operationId: getTauxAssiduite
+      parameters:
+        - $ref: '#/components/parameters/IdMembreParam'
+        - name: date_debut
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: date_fin
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Taux d'assiduité
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  taux:
+                    type: number
+                    format: float
+                    example: 85.5
+                  total_activites_periode:
+                    type: integer
+                  presences:
+                    type: integer
+                  absences_excusees:
+                    type: integer
+                  absences_non_excusees:
+                    type: integer
+
+  # ========== G - STATISTIQUES D'UNE COLLECTIVITÉ ==========
+  /collectivites/{id_collectivite}/rapports-mensuels:
+    post:
+      tags:
+        - Statistiques
+      summary: Rapport mensuel du président à la fédération
+      operationId: envoyerRapportMensuel
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mois
+                - taux_assiduite_global
+                - nb_membres_actifs
+                - nb_nouveaux_adherents
+                - pourcentage_membres_a_jour_cotisation
+              properties:
+                mois:
+                  type: string
+                  format: date
+                  description: "Premier jour du mois concerné"
+                taux_assiduite_global:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 100
+                nb_membres_actifs:
+                  type: integer
+                nb_nouveaux_adherents:
+                  type: integer
+                  description: "Nombre de nouveaux adhérents sur le mois"
+                pourcentage_membres_a_jour_cotisation:
+                  type: number
+                  format: float
+                  minimum: 0
+                  maximum: 100
+                commentaires:
+                  type: string
+      responses:
+        '201':
+          description: Rapport enregistré
+
+  /collectivites/{id_collectivite}/statistiques/membres:
+    get:
+      tags:
+        - Statistiques
+      summary: Statistiques détaillées des membres actifs
+      description: |
+        Pour le président de la collectivité :
+        - Taux d'assiduité par membre
+        - Encaissements par membre
+        - Impayés potentiels
+      operationId: getStatistiquesMembres
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+        - name: date_debut
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: date_fin
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: inclure
+          in: query
+          schema:
+            type: array
+            items:
+              type: string
+              enum: [assiduite, encaissements, impayes]
+            default: [assiduite, encaissements, impayes]
+      responses:
+        '200':
+          description: Statistiques détaillées
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    membre:
+                      $ref: '#/components/schemas/MembreRef'
+                    taux_assiduite:
+                      type: number
+                      format: float
+                      description: "Si inclus"
+                    total_encaisse:
+                      type: integer
+                      description: "Montant total des cotisations sur la période (si inclus)"
+                    montant_impaye:
+                      type: integer
+                      description: "Cotisations dues non réglées (si inclus)"
+
+  # ========== H - STATISTIQUES DE LA FÉDÉRATION (NOUVEAU) ==========
+  /federation/statistiques/rapport-mensuel:
+    post:
+      tags:
+        - Fédération
+        - Statistiques
+      summary: Générer le rapport mensuel de la fédération
+      description: |
+        Le secrétaire de la fédération recense les données des collectivités 
+        pour établir un rapport global mensuel.
+        Ce rapport sera présenté lors des assemblées générales annuelles.
+      operationId: genererRapportMensuelFederation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - mois
+              properties:
+                mois:
+                  type: string
+                  format: date
+                  description: "Premier jour du mois concerné"
+                inclure_classements:
+                  type: boolean
+                  default: true
+                  description: "Inclure les classements des collectivités"
+      responses:
+        '201':
+          description: Rapport mensuel généré
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RapportFederation'
+
+  /federation/statistiques/rapport-annuel:
+    post:
+      tags:
+        - Fédération
+        - Statistiques
+      summary: Générer le rapport annuel de la fédération
+      description: |
+        Établit un rapport annuel consolidé à partir des rapports mensuels.
+        Présenté lors de l'assemblée générale annuelle.
+      operationId: genererRapportAnnuelFederation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - annee
+              properties:
+                annee:
+                  type: integer
+                  format: int32
+                  example: 2026
+                inclure_classements:
+                  type: boolean
+                  default: true
+      responses:
+        '201':
+          description: Rapport annuel généré
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  annee:
+                    type: integer
+                  rapport_mensuels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RapportFederation'
+                  synthese:
+                    type: object
+                    properties:
+                      collectivite_plus_meritante_assiduite:
+                        type: object
+                        properties:
+                          collectivite_id:
+                            type: integer
+                          nom:
+                            type: string
+                          taux_moyen_annuel:
+                            type: number
+                      collectivite_plus_meritante_cotisation:
+                        type: object
+                        properties:
+                          collectivite_id:
+                            type: integer
+                          nom:
+                            type: string
+                          pourcentage_moyen:
+                            type: number
+                      collectivite_plus_dynamique_adhesion:
+                        type: object
+                        properties:
+                          collectivite_id:
+                            type: integer
+                          nom:
+                            type: string
+                          total_nouveaux_membres:
+                            type: integer
+                      collectivites_a_ameliorer:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            collectivite_id:
+                            type: integer
+                            nom:
+                              type: string
+                            axes_amelioration:
+                              type: array
+                              items:
+                                type: string
+                  date_generation:
+                    type: string
+                    format: date-time
+
+  /federation/statistiques/collectivites/{id_collectivite}/evolution:
+    get:
+      tags:
+        - Fédération
+        - Statistiques
+      summary: Évolution des statistiques d'une collectivité
+      description: |
+        Permet de suivre l'évolution d'une collectivité sur plusieurs mois/années
+        pour identifier les tendances et axes d'amélioration.
+      operationId: getEvolutionCollectivite
+      parameters:
+        - $ref: '#/components/parameters/IdCollectiviteParam'
+        - name: date_debut
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: date_fin
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: pas
+          in: query
+          schema:
+            type: string
+            enum: [mois, trimestre, semestre]
+            default: mois
+      responses:
+        '200':
+          description: Évolution des statistiques
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    periode:
+                      type: string
+                    taux_assiduite:
+                      type: number
+                    pourcentage_membres_a_jour:
+                      type: number
+                    nombre_membres:
+                      type: integer
+                    nombre_nouveaux_adherents:
+                      type: integer
+
+  # ========== ENDPOINT POUR RÉCUPÉRER LE CLASSEMENT ==========
+  /federation/statistiques/classement:
+    get:
+      tags:
+        - Fédération
+        - Statistiques
+      summary: Obtenir le classement des collectivités
+      description: |
+        Permet d'obtenir le classement des collectivités selon différents critères
+        pour une période donnée (utile pour les félicitations lors des AG)
+      operationId: getClassementCollectivites
+      parameters:
+        - name: date_debut
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: date_fin
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: critere
+          in: query
+          schema:
+            type: string
+            enum: [assiduite, cotisation, nouveaux_membres]
+            default: assiduite
+      responses:
+        '200':
+          description: Classement des collectivités
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  periode:
+                    type: object
+                    properties:
+                      debut:
+                        type: string
+                        format: date
+                      fin:
+                        type: string
+                        format: date                  classement:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        rang:
+                          type: integer
+                        collectivite_id:
+                          type: integer
+                        nom:
+                          type: string
+                        valeur:
+                          type: number
+                          description: "Valeur du critère (taux, pourcentage, nombre)"
+
+# Schémas supplémentaires
